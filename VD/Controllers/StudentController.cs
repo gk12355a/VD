@@ -1,8 +1,9 @@
-﻿using VD.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using System;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using VD.Data; // Chứa StudentContext
+using VD.Models; // Chứa model Student
 
 namespace VD.Controllers
 {
@@ -17,36 +18,90 @@ namespace VD.Controllers
             _context = context;
         }
 
-        //action
-        [HttpPost("CreateStudent")]
-        public async Task<IActionResult> CreateStudent(Student student)
+        // 1️⃣ Lấy danh sách sinh viên
+        [HttpGet]
+        public async Task<IActionResult> GetStudents()
         {
+            var students = await _context.Students.ToListAsync();
+            return Ok(students);
+        }
+
+        // 2️⃣ Lấy thông tin sinh viên theo ID
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetStudent(int id)
+        {
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sinh viên!" });
+            }
+            return Ok(student);
+        }
+
+        // 3️⃣ Thêm sinh viên mới
+        [HttpPost("CreateStudent")]
+        public async Task<IActionResult> CreateStudent([FromBody] Student student)
+        {
+            if (student == null)
+            {
+                return BadRequest(new { message = "Dữ liệu không hợp lệ!" });
+            }
 
             _context.Students.Add(student);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Student added successfully", student });
-
+            return CreatedAtAction(nameof(GetStudent), new { id = student.Id }, student);
         }
+
+        // 4️⃣ Cập nhật thông tin sinh viên
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateStudent(int id, [FromBody] Student studentUpdate)
+        {
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sinh viên!" });
+            }
+
+            // Cập nhật thông tin
+            student.Name = studentUpdate.Name;
+            student.Age = studentUpdate.Age;
+            student.Class = studentUpdate.Class;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật thông tin thành công!", student });
+        }
+
+        // 5️⃣ Cập nhật ảnh sinh viên
         [HttpPut("UpdatePhoto/{id}")]
         public async Task<IActionResult> UpdatePhoto(int id, [FromBody] string base64ImageString)
         {
-            // Tìm sinh viên trong cơ sở dữ liệu bằng ID
             var student = await _context.Students.FindAsync(id);
-
             if (student == null)
             {
-                return NotFound(); // Trả về mã lỗi 404 nếu không tìm thấy sinh viên
+                return NotFound(new { message = "Không tìm thấy sinh viên!" });
             }
 
-            // Cập nhật trường Photo của sinh viên
             student.Photo = base64ImageString;
-
-            // Lưu các thay đổi vào cơ sở dữ liệu
             await _context.SaveChangesAsync();
 
-            return Ok(); // Trả về mã lỗi 200 OK nếu cập nhật thành công
+            return Ok(new { message = "Cập nhật ảnh thành công!" });
         }
 
+        // 6️⃣ Xóa sinh viên
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteStudent(int id)
+        {
+            var student = await _context.Students.FindAsync(id);
+            if (student == null)
+            {
+                return NotFound(new { message = "Không tìm thấy sinh viên!" });
+            }
+
+            _context.Students.Remove(student);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Xóa sinh viên thành công!" });
+        }
     }
 }
